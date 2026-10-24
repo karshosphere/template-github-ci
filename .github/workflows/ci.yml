@@ -18,6 +18,8 @@ concurrency:
 env:
   # renovate: datasource=github-releases depName=rhysd/actionlint
   ACTIONLINT_VERSION: v1.7.12
+  # renovate: datasource=pypi depName=shellcheck-py
+  SHELLCHECK_PY_VERSION: 0.11.0.1
 
 jobs:
   version:
@@ -62,8 +64,13 @@ jobs:
           curl -fsSLO "$base/actionlint_${version}_checksums.txt"
           grep " $archive\$" "actionlint_${version}_checksums.txt" | sha256sum -c -
           tar -xzf "$archive" actionlint
+      # the runner's preinstalled shellcheck is older and flags different things, so lint runs a pinned one
+      - name: Install shellcheck
+        run: |
+          python3 -m venv "$RUNNER_TEMP/shellcheck"
+          "$RUNNER_TEMP/shellcheck/bin/pip" install --quiet "shellcheck-py==$SHELLCHECK_PY_VERSION"
       - name: Lint the shipped and repository workflows
-        run: '"$RUNNER_TEMP/actionlint" template/.github/workflows/*.yml .github/workflows/*.yml'
+        run: '"$RUNNER_TEMP/actionlint" -shellcheck="$RUNNER_TEMP/shellcheck/bin/shellcheck" template/.github/workflows/*.yml .github/workflows/*.yml'
 
   tag:
     if: github.event_name == 'push'
